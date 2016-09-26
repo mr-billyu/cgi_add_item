@@ -3,8 +3,6 @@ use strict;
 require Store_list_db;
 use CGI;
 
-my(@home_locations);
-my(@store_locations);
 my($query);
 
 $query = new CGI;
@@ -60,27 +58,25 @@ sub validate_form
 
 sub display_form
 {
-  my $error_message = shift;
-  my $your_name = shift;
-  my $your_sex = shift;
-  my $your_age = shift;
+  # name, home_locator_id, store_locator_id, stocking_level, comment
+  my($error_message) = shift;
+  my($item) = shift;
+  my($home_loc) = shift;
 
-  # Remove any potentially malicious HTML tags
-  $your_name =~ s/<([^>]|\n)*>//g;
+  my($home_loc_drop_down_html);
+  my(@home_loc_list);
+  my(@store_loc_list);
+  my($loc);
+  
+  # Build  drop-down list
+  $home_loc_drop_down_html = "";
+  get_locations(\@home_loc_list, \@store_loc_list);
 
-  # Build "selected" HTML for the "Your Sex" radio buttons
-  my $your_sex_f_sel = $your_sex eq "f" ? " checked" : "";
-  my $your_sex_m_sel = $your_sex eq "m" ? " checked" : "";
-
-  # Build "selected" HTML for the "Your Age" drop-down list
-  my $your_age_html = "";
-  my @your_age_opts = ( "Please select", "Under 18", "18-35", "35-55", "Over 55" );
-
-  foreach my $your_age_option ( @your_age_opts )
+  foreach $loc (@home_loc_list)
   {
-    $your_age_html .= "<option value=\"$your_age_option\"";
-    $your_age_html .= " selected" if ( $your_age_option eq $your_age );
-    $your_age_html .= ">$your_age_option</option>";
+    $home_loc_drop_down_html .= "<option value=\"$loc\"";
+    $home_loc_drop_down_html .= " selected" if ( $loc eq $home_loc );
+    $home_loc_drop_down_html .= ">$loc</option>";
   }
 
   # Display the form
@@ -96,11 +92,6 @@ sub display_form
 
   <p>Your Name:<br>
   <input type="text" name="your_name" value="$your_name">
-  </p>
-
-  <p>Your Sex:<br>
-  <input type="radio" name="your_sex" value="f"$your_sex_f_sel>Female
-  <input type="radio" name="your_sex" value="m"$your_sex_m_sel>Male
   </p>
 
   <p>Your Age:<br>
@@ -122,7 +113,6 @@ END_HTML
 
 
 
-get_locations(\@home_locations, \@store_locations);
 
 exit(0);
 
