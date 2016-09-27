@@ -18,6 +18,7 @@ else
   display_form();
 }
 
+#===================================================================
 sub process_form
 {
   if(validate_form())
@@ -31,22 +32,24 @@ END_HTML
   }
 }
 
+#===================================================================
 sub validate_form
 {
-  my $your_name = $query->param("your_name");
-  my $your_sex = $query->param("your_sex");
-  my $your_age = $query->param("your_age");
+  my($item);
+  my($home_loc);
+  my($error_message);
 
-  my $error_message = "";
+  $item = $query->param("Item");
+  $home_loc = $query->param("home_location");
 
-  $error_message .= "Please enter your name<br>" if (!$your_name);
-  $error_message .= "Please specify your sex<br>" if (!$your_sex);
-  $error_message .= "Please specify your age<br>" if ($your_age eq "Please select");
+  $error_message = "";
+  $error_message .= "Please enter Item<br>" if (!$item);
+  $error_message .= "Please specify Home Location <br>" if (!$home_loc);
 
   if ($error_message)
   {
     # Errors with the form - redisplay it and return failure
-    display_form($error_message, $your_name, $your_sex, $your_age);
+    display_form($error_message, $item, $home_loc);
     return(0);
   }
   else
@@ -56,6 +59,7 @@ sub validate_form
   }
 }
 
+#===================================================================
 sub display_form
 {
   # name, home_locator_id, store_locator_id, stocking_level, comment
@@ -85,17 +89,17 @@ sub display_form
   <head><title>Form Validation</title></head>
   <body>
 
-  <form action="reentrant.pl" method="post">
+  <form action="store_list_add_item.pl" method="post">
   <input type="hidden" name="submit" value="Submit">
 
   <p>$error_message</p>
 
-  <p>Your Name:<br>
-  <input type="text" name="your_name" value="$your_name">
+  <p>Item:<br>
+  <input type="text" name="Item" value="$item">
   </p>
 
-  <p>Your Age:<br>
-  <select name="your_age">$your_age_html</select>
+  <p>Home Location:<br>
+  <select name="home_location">$home_loc_drop_down_html</select>
   </p>
 
   <input type="submit" name="submit" value="Submit">
@@ -107,15 +111,7 @@ END_HTML
 
 }
 
-
-
-
-
-
-
-
-exit(0);
-
+#===================================================================
 sub get_locations
 {
 	my($home_locations) = shift;
