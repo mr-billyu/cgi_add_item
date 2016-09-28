@@ -24,11 +24,12 @@ sub process_form
   if(validate_form())
   {
     print <<END_HTML;
-    <html><head><title>Thank You</title></head>
+    <html><head><title>Store List Add Item</title></head>
     <body>
-    Thank you - your form was submitted correctly!
+    Item has been added. Please add next item.
     </body></html>
 END_HTML
+    display_form();
   }
 }
 
@@ -114,25 +115,27 @@ sub display_form
 
   <p>$error_message</p>
 
-  <p>Item:<br>
+  <h3>Store List Add Item</h3>
+
+  <p>Item:
   <input type="text" name="Item" value="$item">
-  </p>
+  <br>
 
-  <p>Home Location:<br>
+  Home Location:
   <select name="home_location">$home_loc_drop_down_html</select>
-  </p>
+  <br> 
 
-  <p>Store Location:<br>
+  Store Location:
   <select name="store_location">$store_loc_drop_down_html</select>
-  </p>
+  <br>
 
-  <p>Stocking Level:<br>
+  Stocking Level:
   <input type="text" name="stocking_level" value="$stocking_lvl">
-  <p>
+  <br>
 
-  <p>Comment:<br>
+  Comment:
   <input type="text" name="comment" value="$comment">
-  <p>
+  <br>
 
   <input type="submit" name="submit" value="Submit">
 
