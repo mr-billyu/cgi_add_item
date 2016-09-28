@@ -37,19 +37,27 @@ sub validate_form
 {
   my($item);
   my($home_loc);
+  my($store_loc);
+  my($stocking_lvl);
+  my($comment);
   my($error_message);
 
   $item = $query->param("Item");
   $home_loc = $query->param("home_location");
+  $store_loc = $query->param("store_location");
+  $stocking_lvl = $query->param("stocking_level");
+  $comment = $query->param("comment");
 
   $error_message = "";
   $error_message .= "Please enter Item<br>" if (!$item);
   $error_message .= "Please specify Home Location <br>" if (!$home_loc);
+  $error_message .= "Please specify Store Location <br>" if (!$store_loc);
+  $error_message .= "Please specify Stocking Level <br>" if (!$stocking_lvl);
 
   if ($error_message)
   {
     # Errors with the form - redisplay it and return failure
-    display_form($error_message, $item, $home_loc);
+    display_form($error_message, $item, $home_loc, $store_loc, $stocking_lvl, $comment);
     return(0);
   }
   else
@@ -66,9 +74,13 @@ sub display_form
   my($error_message) = shift;
   my($item) = shift;
   my($home_loc) = shift;
+  my($store_loc) = shift;
+  my($stocking_lvl) = shift;
+  my($comment) = shift;
 
   my($home_loc_drop_down_html);
   my(@home_loc_list);
+  my($store_loc_drop_down_html);
   my(@store_loc_list);
   my($loc);
   
@@ -78,9 +90,18 @@ sub display_form
 
   foreach $loc (@home_loc_list)
   {
+    $loc =~ s/\n//;
     $home_loc_drop_down_html .= "<option value=\"$loc\"";
     $home_loc_drop_down_html .= " selected" if ( $loc eq $home_loc );
     $home_loc_drop_down_html .= ">$loc</option>";
+  }
+
+  foreach $loc (@store_loc_list)
+  {
+    $loc =~ s/\n//;
+    $store_loc_drop_down_html .= "<option value=\"$loc\"";
+    $store_loc_drop_down_html .= " selected" if ( $loc eq $store_loc );
+    $store_loc_drop_down_html .= ">$loc</option>";
   }
 
   # Display the form
@@ -90,7 +111,6 @@ sub display_form
   <body>
 
   <form action="store_list_add_item.pl" method="post">
-  <input type="hidden" name="submit" value="Submit">
 
   <p>$error_message</p>
 
@@ -101,6 +121,18 @@ sub display_form
   <p>Home Location:<br>
   <select name="home_location">$home_loc_drop_down_html</select>
   </p>
+
+  <p>Store Location:<br>
+  <select name="store_location">$store_loc_drop_down_html</select>
+  </p>
+
+  <p>Stocking Level:<br>
+  <input type="text" name="stocking_level" value="$stocking_lvl">
+  <p>
+
+  <p>Comment:<br>
+  <input type="text" name="comment" value="$comment">
+  <p>
 
   <input type="submit" name="submit" value="Submit">
 
