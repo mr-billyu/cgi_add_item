@@ -36,6 +36,16 @@ sub get_home_locations {
 	return(@results);
 }
 
+sub get_home_loc_id {
+	my($self, $home_loc) = @_;
+	my(@results);
+	my($cmd) = "select home_locator_id from home_locator \
+                where name = \"$home_loc\";";
+
+	(@results) = `sqlite3 $self->{database} '$cmd'`;
+	return($results[0]);
+}
+
 sub get_store_locations {
 	my($self) = @_;
 	my(@results);
@@ -43,6 +53,16 @@ sub get_store_locations {
 
 	(@results) = `sqlite3 $self->{database} '$cmd'`;
 	return(@results);
+}
+
+sub get_store_loc_id {
+	my($self, $store_loc) = @_;
+	my(@results);
+	my($cmd) = "select store_locator_id from store_locator \
+                where name = \"$store_loc\";";
+
+	(@results) = `sqlite3 $self->{database} '$cmd'`;
+	return($results[0]);
 }
 
 sub add_item {
