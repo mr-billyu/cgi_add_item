@@ -66,8 +66,32 @@ sub get_store_loc_id {
 }
 
 sub add_item {
-	my($self, $item, $home_locator, $store_locator, $stocking_level, 
+	my($self, $item, $home_loc_id, $store_loc_id, $stocking_lvl, 
        $comment) = @_;
+
+    my($cmd);
+    my(@results);
+
+    $cmd = "insert into item 
+            (name, home_locator_id, store_locator_id, 
+             stocking_level, comment)
+            values (\"$item\", \"$home_loc_id\", \"$store_loc_id\", 
+             \"$stocking_lvl\", \"$comment\")";
+
+	(@results) = `sqlite3 $self->{database} '$cmd'`;
+
+    return($results[0]);
 }
+
+sub get_item {
+	my($self, $item) = @_;
+	my($results);
+	my($cmd) = "select * from item \
+                where name = \"$item\";";
+
+	$results = `sqlite3 $self->{database} '$cmd'`;
+	return($results);
+}
+
 1;
 

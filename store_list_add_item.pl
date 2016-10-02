@@ -6,16 +6,7 @@ use CGI;
 my($query);
 my($db);
 my($results);
-
-#
-# Connect to the store list database.
-#
-$db = Store_list_db->new();
-$results = $db->connect("retro_store_list.db");
-if (($results eq -1) || ($results =~ /Error/))
-{
-die "Invalid database file specified: $!";
-}
+my(%data);
 
 #
 # Initialize CGI interface.
@@ -24,11 +15,22 @@ $query = new CGI;
 print $query->header();
 
 #
-# Process form if submitted; otherwise display it
+# Connect to the store list database.
+#
+$db = Store_list_db->new();
+$results = $db->connect("/tmp/retro_store_list.db");
+if (($results eq -1) || ($results =~ /Error/))
+{
+  display_form("FATAL ERROR: Invalid database file specified: $!");
+  exit;
+}
+
+#
+# Process form input if submitted; otherwise display it
 #
 if($query->param("submit"))
 {
-  process_form();
+  process_form_input();
 }
 else
 {
@@ -36,56 +38,127 @@ else
 }
 
 ####################################################################
-#                     Form Processing Routines
+#                     Process Form Input Routines 
 ####################################################################
 
 #===================================================================
-sub process_form
+sub process_form_input
 {
-  if(validate_form())
+  get_form_input();
+  if(!validate_input())
+  {
+    display_form($data{'error message'}, $data{'item'},
+                 $data{'home location'}, $data{'store location'}, 
+                 $data{'stocking level'}, $data{'comment'});
+    return;
+  }
+  update_database();
+  if(verify_update())
   {
     display_form("Item has been added. Please add next item.");
+  }
+  else
+  {
+    display_form($data{'error message'});
+  } 
+}
+
+#===================================================================
+sub get_form_input
+{
+  $data{'item'} = $query->param("item");
+  $data{'home location'} = $query->param("home_location");
+  $data{'store location'} = $query->param("store_location");
+  $data{'stocking level'} = $query->param("stocking_level");
+  $data{'comment'} = $query->param("comment");
+}
+
+#===================================================================
+sub validate_input
+{
+  $data{'error message'} = "";
+  if(!$data{'item'})
+  {
+    $data{'error message'} .= "Please enter Item<br>";
+  }
+
+  if($data{'error message'})
+  {
+    return(0);
+  }
+  else
+  {
+    return(1);
   }
 }
 
 #===================================================================
-sub validate_form
+sub update_database
 {
-  my($item);
-  my($home_loc);
-  my($home_loc_id);
-  my($store_loc);
-  my($store_loc_id);
-  my($stocking_lvl);
-  my($comment);
-  my($error_message);
+  my($results);
 
-  #
-  # Get the input parameters from the form
-  #
-  $item = $query->param("Item");
-  $home_loc = $query->param("home_location");
-  $store_loc = $query->param("store_location");
-  $stocking_lvl = $query->param("stocking_level");
-  $comment = $query->param("comment");
+  $data{'home location id'} = $db->get_home_loc_id($data{'home location'}); 
+  $data{'store location id'} = $db->get_store_loc_id($data{'store location'});
 
-  $error_message = "";
-  $error_message .= "Please enter Item<br>" if (!$item);
+  $results = $db->add_item($data{'item'}, $data{'home location id'},
+                           $data{'store location id'},
+                           $data{'stocking level'}, $data{'comment'});
 
-  if ($error_message)
+  return($results);
+}
+
+#===================================================================
+sub verify_update
+{
+  my(@results);
+  my($x);
+
+  $x = $db->get_item($data{'item'});
+  (@results) = split(/\|/, $x);
+
+  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$x"`;
+  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[0]"`;
+  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[1]"`;
+  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[2]"`;
+  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[3]"`;
+  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[4]"`;
+
+
+  $data{'error message'} = "";
+
+  if($results[0] != $data{'item'})
   {
-    display_form($error_message, $item, $home_loc, $store_loc, 
-                 $stocking_lvl, $comment);
-    return(0);
+    $data{'error message'} .= "item error: $results[0]\n";
   }
 
-  #
-  # Get the home and store location ids
-  #
-  $home_loc_id = $db->get_home_loc_id($home_loc); 
-  $store_loc_id = $db->get_store_loc_id($store_loc);
+  if($results[1] != $data{'home location id'})
+  {
+    $data{'error message'} .= "home location error: $results[1]\n";
+  }
 
-  return(1);
+  if($results[2] != $data{'store location id'})
+  {
+    $data{'error message'} .= "store location error: $results[2]\n";
+  }
+
+  if($results[3] != $data{'stocking level'})
+  {
+    $data{'error message'} .= "stocking level error: $results[3]\n";
+  }
+
+  if($results[4] != $data{'comment'})
+  {
+    $data{'error message'} .= "comment error: $results[4]\n";
+  }
+
+  if($data{'error message'})
+  {
+    return(0);
+  }
+  else
+  {
+    return(1);
+  }
 }
 
 ####################################################################
@@ -146,7 +219,7 @@ sub display_form
   <h3>Store List Add Item</h3>
 
   <p>Item:
-  <input type="text" name="Item" value="$item">
+  <input type="text" name="item" value="$item">
   <br>
 
   Home Location:
