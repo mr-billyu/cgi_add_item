@@ -82,6 +82,11 @@ sub validate_input
     $data{'error message'} .= "Please enter Item<br>";
   }
 
+  if($db->duplicate_item($data{'item'}))
+  {
+    $data{'error message'} .= "Duplicate Items not allowed.";
+  }
+
   if($data{'error message'})
   {
     return(0);
@@ -110,45 +115,37 @@ sub update_database
 #===================================================================
 sub verify_update
 {
-  my(@results);
-  my($x);
+  my($results);
+  my(@column);
 
-  $x = $db->get_item($data{'item'});
-  (@results) = split(/\|/, $x);
-
-  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$x"`;
-  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[0]"`;
-  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[1]"`;
-  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[2]"`;
-  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[3]"`;
-  `/var/www/billyu.com/cgi-bin/msg.pl "/tmp/debug.tmp" "$results[4]"`;
-
+  $results = $db->get_item($data{'item'});
+  (@column) = split(/\|/, $results);
 
   $data{'error message'} = "";
 
-  if($results[0] != $data{'item'})
+  if($column[0] != $data{'item'})
   {
-    $data{'error message'} .= "item error: $results[0]\n";
+    $data{'error message'} .= "item error: $column[0]\n";
   }
 
-  if($results[1] != $data{'home location id'})
+  if($column[1] != $data{'home location id'})
   {
-    $data{'error message'} .= "home location error: $results[1]\n";
+    $data{'error message'} .= "home location error: $column[1]\n";
   }
 
-  if($results[2] != $data{'store location id'})
+  if($column[2] != $data{'store location id'})
   {
-    $data{'error message'} .= "store location error: $results[2]\n";
+    $data{'error message'} .= "store location error: $column[2]\n";
   }
 
-  if($results[3] != $data{'stocking level'})
+  if($column[3] != $data{'stocking level'})
   {
-    $data{'error message'} .= "stocking level error: $results[3]\n";
+    $data{'error message'} .= "stocking level error: $column[3]\n";
   }
 
-  if($results[4] != $data{'comment'})
+  if($column[4] != $data{'comment'})
   {
-    $data{'error message'} .= "comment error: $results[4]\n";
+    $data{'error message'} .= "comment error: $column[4]\n";
   }
 
   if($data{'error message'})
@@ -211,36 +208,37 @@ sub display_form
   #
   print <<END_HTML;
   <html>
-  <head><title>Form Validation</title></head>
-  <body>
+    <head><title>Form Validation</title></head>
+    <body>
 
-  <form action="store_list_add_item.pl" method="post">
+      <form action="store_list_add_item.pl" method="post">
 
-  <h3>Store List Add Item</h3>
+        <h3>Store List Add Item</h3>
 
-  <p>Item:
-  <input type="text" name="item" value="$item">
-  <br>
+        <p>Item:
+          <input type="text" name="item" value="$item" autofocus>
+          <br>
 
-  Home Location:
-  <select name="home_location">$home_loc_drop_down_html</select>
-  <br> 
+          Home Location:
+          <select name="home_location">$home_loc_drop_down_html</select>
+          <br> 
 
-  Store Location:
-  <select name="store_location">$store_loc_drop_down_html</select>
-  <br>
+          Store Location:
+          <select name="store_location">$store_loc_drop_down_html</select>
+          <br>
 
-  Stocking Level:
-  <input type="text" name="stocking_level" value="$stocking_lvl">
-  <br>
+          Stocking Level:
+          <input type="text" name="stocking_level" value="$stocking_lvl">
+          <br>
 
-  Comment:
-  <input type="text" name="comment" value="$comment">
-  <br>
+          Comment:
+          <input type="text" name="comment" value="$comment">
+          <br>
 
-  <input type="submit" name="submit" value="Submit">
+          <input type="submit" name="submit" value="Submit">
+        </p>
 
-  <p style="color:red;">$error_message</p>
+        <p style="color:red;">$error_message</p>
 
   </form>
   

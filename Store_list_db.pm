@@ -70,7 +70,6 @@ sub add_item {
        $comment) = @_;
 
     my($cmd);
-    my(@results);
 
     $cmd = "insert into item 
             (name, home_locator_id, store_locator_id, 
@@ -78,20 +77,34 @@ sub add_item {
             values (\"$item\", \"$home_loc_id\", \"$store_loc_id\", 
              \"$stocking_lvl\", \"$comment\")";
 
-	(@results) = `sqlite3 $self->{database} '$cmd'`;
+	`sqlite3 $self->{database} '$cmd'`;
 
-    return($results[0]);
+    return();
 }
 
 sub get_item {
 	my($self, $item) = @_;
-	my($results);
+	my(@results);
 	my($cmd) = "select * from item \
                 where name = \"$item\";";
 
-	$results = `sqlite3 $self->{database} '$cmd'`;
-	return($results);
+	(@results) = `sqlite3 $self->{database} '$cmd'`;
+	return($results[0]);
 }
 
+sub duplicate_item {
+	my($self, $item) = @_;
+	my($cmd) = "select name from item \
+                where name = \"$item\";";
+
+	if( `sqlite3 $self->{database} '$cmd'`)
+    {
+        return(1);
+    }
+    else
+    {
+    	return(0);
+    }
+}
 1;
 
