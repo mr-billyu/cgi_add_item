@@ -18,7 +18,8 @@ print $query->header();
 # Connect to the store list database.
 #
 $db = Store_list_db->new();
-$results = $db->connect("/tmp/retro_store_list.db");
+$results = $db->connect("/var/www/billyu.com/store_list/retro_store_list.db");
+
 if (($results eq -1) || ($results =~ /Error/))
 {
   display_form("FATAL ERROR: Invalid database file specified: $!");
