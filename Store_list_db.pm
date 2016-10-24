@@ -82,6 +82,15 @@ sub add_item {
     return();
 }
 
+sub get_all_items {
+	my($self) = @_;
+	my(@results);
+	my($cmd) = "select * from item";
+	
+	(@results)= `sqlite3 $self->{database} '$cmd'`;
+	return(@results);
+}
+
 sub get_item {
 	my($self, $item) = @_;
 	my(@results);

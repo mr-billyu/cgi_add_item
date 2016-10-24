@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 use strict;
-require Store_list_db;
+use Store_list_db;
+use Store_list_dump_item_scrn_1;
 use CGI;
 
 my($query);
@@ -22,7 +23,7 @@ $results = $db->connect("/var/www/billyu.com/store_list/retro_store_list.db");
 
 if (($results eq -1) || ($results =~ /Error/))
 {
-  display_form("FATAL ERROR: Invalid database file specified: $!");
+  Store_list_dump_item_scrn_1::display_form($db, "FATAL ERROR: Invalid database file specified: $!");
   exit;
 }
 
@@ -35,7 +36,7 @@ if($query->param("submit"))
 }
 else
 {
-  display_form();
+  Store_list_dump_item_scrn_1::display_form($db);
 }
 
 ####################################################################
@@ -48,17 +49,17 @@ sub process_form_input
   get_form_input();
   if(!validate_input())
   {
-    display_form();
+    Store_list_dump_item_scrn_1::display_form($db);
     return;
   }
   update_database();
   if(verify_update())
   {
-    display_form();
+    Store_list_dump_item_scrn_1::display_form($db);
   }
   else
   {
-    display_form();
+    Store_list_dump_itme_scrn_1::display_form($db);
   } 
 }
 
@@ -157,55 +158,5 @@ sub verify_update
   }
 }
 
-####################################################################
-#                       Form Display Routines
-####################################################################
-#===================================================================
-sub display_form
-{
-  my($error_message) = shift;
-  my(@items);
-  my($row);
-  my($i);
-  
-  #
-  # Get all items.
-  #
-  @items = $db->get_all_items();
 
-
-
-  #
-  # Output the html code to display the form 
-  #
-  print <<END_HTML;
-  <html>
-    <head><title>Form Validation</title></head>
-    <body>
-
-      <form action="dump_item.pl" method="post">
-
-       <h3>Dump Item</h3>
-END_HTML
-
-
-  $i = 1;
-  foreach $row (@items)
-  {
-	  print("$i $row <br>");
-	  $i++;
-  }
-
-	print <<END_HTML;
-          <input type="submit" name="submit" value="Submit">
-        </p>
-
-        <p style="color:red;">$error_message</p>
-
-  </form>
-  
-  </body></html>
-END_HTML
-
-}
 
