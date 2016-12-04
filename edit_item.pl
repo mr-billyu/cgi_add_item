@@ -5,7 +5,7 @@ use DBI;
 
 my($item_form);
 my($dbh);
-my($qryh);
+my($sqlh);
 my(%data);
 
 #
@@ -86,9 +86,9 @@ sub validate_input
 
   $stmt = qq(select name from item
              where name = ?;);
-  $qryh = $dbh->prepare($stmt);
-  $qryh->execute($data{item});
-  @row = $qryh->fetchrow_array();
+  $sqlh = $dbh->prepare($stmt);
+  $sqlh->execute($data{item});
+  @row = $sqlh->fetchrow_array();
   if(@row)
   {
 	  if ($row[0] == $data{item})
@@ -115,62 +115,74 @@ sub update_database
 	
 	$stmt = qq(select home_locator_id from home_locator
 			   where name = ?;);
-	$qryh = $dbh->prepare($stmt);
-	$qryh->execute($data{home_location});
-	@row = $qryh->fetchrow_array();
+	$sqlh = $dbh->prepare($stmt);
+	$sqlh->execute($data{home_location});
+	@row = $sqlh->fetchrow_array();
 	$data{home_location_id} = $row[0];
 	
 	$stmt = qq(select store_locator_id from store_locator
 	           where name = ?;);
-	$qryh = $dbh->prepare($stmt);
-	$qryh->execute($data{store_location});
-	@row = $qryh->fetchrow_array();
+	$sqlh = $dbh->prepare($stmt);
+	$sqlh->execute($data{store_location});
+	@row = $sqlh->fetchrow_array();
 	$data{store_location_id} = $row[0];
 
 	$stmt = qq(insert into item (name, home_locator_id,
 	           store_locator_id, stocking_level, comment) values
-	           ("$data{item}", "$data{home_location_id}", 
+	           (?, ?, ?, ?, ?););
+	$sqlh = $dbh->prepare($stmt);
+	$sqlh->execute("$data{item}", "$data{home_location_id}", 
 	            "$data{store_location_id}", "$data{stocking_level}",
-	            "$data{comment}"));
-	$dbh->do($stmt);
+	            "$data{comment}");
 }
 
 #===================================================================
 sub verify_update
 {
   my($stmt);
-  my(@row);
+  my(@item_row);
+  my(@locator_row);
   
   $stmt = qq(select * from item where name = ?);
-  $qryh = $dbh->prepare($stmt);
-  $qryh->execute($data{item});
-  @row = $qryh->fetchrow_array();
+  $sqlh = $dbh->prepare($stmt);
+  $sqlh->execute($data{item});
+  @item_row = $sqlh->fetchrow_array();
   
   $data{error_message} = "";
 
-  if($row[0] != $data{item})
+  if($item_row[0] != $data{item})
   {
-    $data{error_message} .= "item error: $row[0]\n";
+    $data{error_message} .= "item error: $item_row[0]\n";
   }
 
-  if($row[1] != $data{home_location_id})
+  $stmt = qq(select name from home_locator
+             where home_locator_id = ?;);
+  $sqlh = $dbh->prepare($stmt);
+  $sqlh->execute($item_row[1]);
+  @locator_row = $sqlh->fetchrow_array();
+  if($locator_row[0] != $data{home_location})
   {
-    $data{error_message} .= "home location error: $row[1]\n";
+    $data{error_message} .= "home location error: $locator_row[0]\n";
   }
 
-  if($row[2] != $data{store_location_id})
+  $stmt = qq(select name from store_locator
+             where store_locator_id = ?;);
+  $sqlh = $dbh->prepare($stmt);
+  $sqlh->execute($item_row[2]);
+  @locator_row = $sqlh->fetchrow_array();
+  if($locator_row[0] != $data{store_location})
   {
-    $data{error_message} .= "store location error: $row[2]\n";
+    $data{error_message} .= "store location error: $locator_row[0]\n";
   }
 
-  if($row[3] != $data{stocking_level})
+  if($item_row[3] != $data{stocking_level})
   {
-    $data{error_message} .= "stocking level error: $row[3]\n";
+    $data{error_message} .= "stocking level error: $item_row[3]\n";
   }
 
-  if($row[4] != $data{comment})
+  if($item_row[4] != $data{comment})
   {
-    $data{error_message} .= "comment error: $row[4]\n";
+    $data{error_message} .= "comment error: $item_row[4]\n";
   }
 
   if($data{error_message})
@@ -206,9 +218,9 @@ sub display_form
   #
   $home_loc_drop_down_html = "";
   $stmt = qq(select name from home_locator;);
-  $qryh = $dbh->prepare($stmt);
-  $qryh->execute();
-  while(@row = $qryh->fetchrow_array())
+  $sqlh = $dbh->prepare($stmt);
+  $sqlh->execute();
+  while(@row = $sqlh->fetchrow_array())
   {
     $home_loc_drop_down_html .= "<option value=\"$row[0]\"";
     $home_loc_drop_down_html .= " selected" if ( $row[0] eq $home_loc );
@@ -220,9 +232,9 @@ sub display_form
   #
   $store_loc_drop_down_html = "";
   $stmt = qq(select name from store_locator;);
-  $qryh = $dbh->prepare($stmt);
-  $qryh->execute();
-  while(@row = $qryh->fetchrow_array())
+  $sqlh = $dbh->prepare($stmt);
+  $sqlh->execute();
+  while(@row = $sqlh->fetchrow_array())
   {
     $store_loc_drop_down_html .= "<option value=\"$row[0]\"";
     $store_loc_drop_down_html .= " selected" if ( $row[0] eq $store_loc );
