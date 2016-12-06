@@ -1,52 +1,75 @@
 #!/usr/bin/env perl
 use strict;
 use CGI;
+use CGI::Carp qw(warningsToBrowser fatalsToBrowser);
 use DBI;
 
-my($item_form);
+my($form);
 my($dbh);
-my($sqlh);
 my(%data);
 
 #
 # Initialize CGI interface.
 #
-$item_form = new CGI;
-print $item_form->header();
+$form = new CGI;
 
 #
 # Connect to the store list database.
 #
 $dbh = DBI->connect("DBI:SQLite:dbname=/var/www/billyu.com/test_store_list.db")
-					or die $DBI::errstr;
+          or die $DBI::errstr;
 $dbh->{RaiseError} = 0;
 $dbh->{AutoCommit} = 1;
 
 #
 # Process form input if submitted; otherwise display it
 #
-if($item_form->param("submit"))
+if($form->param("submit"))
 {
-  process_form_input();
+  if($form->param("state") eq "item")
+  {
+    process_item_input();
+  }
+  else
+  {
+    process_edit_input();
+  }
 }
 else
 {
-  display_form();
+  display_form("item");
 }
 
 $dbh->disconnect();
 
-####################################################################
-#                     Process Form Input Routines 
-####################################################################
 
+####################################################################
+#                     Process Edit Form Input Routines 
+####################################################################
 #===================================================================
-sub process_form_input
+sub process_item_input
 {
-  get_form_input();
-  if(!validate_input())
+  display_form("edit", "test msg");
+}
+
+sub get_item_input
+{
+}
+
+sub validate_item_input
+{
+}
+
+####################################################################
+#                     Process Edit Form Input Routines 
+####################################################################
+#===================================================================
+sub process_edit_input
+{
+  get_edit_input();
+  if(!validate_edit_input())
   {
-    display_form($data{error_message}, $data{item},
+    display_form("edit", $data{error_message}, $data{item},
                  $data{home_location}, $data{store_location}, 
                  $data{stocking_level}, $data{comment});
     return;
@@ -54,26 +77,26 @@ sub process_form_input
   update_database();
   if(verify_update())
   {
-    display_form("Item has been added. Please add next item.");
+    display_form("item", "Item has been added. Please add next item.");
   }
   else
   {
-    display_form($data{error_message});
+    display_form("edit", $data{error_message});
   } 
 }
 
 #===================================================================
-sub get_form_input
+sub get_edit_input
 {
-  $data{item} = $item_form->param("item");
-  $data{home_location} = $item_form->param("home_location");
-  $data{store_location} = $item_form->param("store_location");
-  $data{stocking_level} = $item_form->param("stocking_level");
-  $data{comment} = $item_form->param("comment");
+  $data{item} = $form->param("item");
+  $data{home_location} = $form->param("home_location");
+  $data{store_location} = $form->param("store_location");
+  $data{stocking_level} = $form->param("stocking_level");
+  $data{comment} = $form->param("comment");
 }
 
 #===================================================================
-sub validate_input
+sub validate_edit_input
 {
   my($stmt);
   my(@row);
@@ -84,16 +107,18 @@ sub validate_input
     $data{error_message} .= "Please enter Item<br>";
   }
 
-  $stmt = qq(select name from item
-             where name = ?;);
-  $sqlh = $dbh->prepare($stmt);
-  $sqlh->execute($data{item});
-  @row = $sqlh->fetchrow_array();
+  $stmt = $dbh->prepare(qq:
+                        select name from item
+                        where name = ?;
+                        :);
+  $stmt->execute($data{item});
+  @row = $stmt->fetchrow_array();
+  $stmt->finish();
   if(@row)
   {
-	  if ($row[0] == $data{item})
+	  if ($row[0] eq $data{item})
 	  {
-		$data{error_message} .= "Duplicate Items not allowed.";
+      $data{error_message} .= "Duplicate Items not allowed.";
 	  }
   }
 
@@ -113,27 +138,33 @@ sub update_database
 	my($stmt);
 	my(@row);
 	
-	$stmt = qq(select home_locator_id from home_locator
-			   where name = ?;);
-	$sqlh = $dbh->prepare($stmt);
-	$sqlh->execute($data{home_location});
-	@row = $sqlh->fetchrow_array();
+	$stmt = $dbh->prepare(qq:
+	                      select home_locator_id from home_locator
+			                  where name = ?;
+			                  :);
+	$stmt->execute($data{home_location});
+	@row = $stmt->fetchrow_array();
+	$stmt->finish();
 	$data{home_location_id} = $row[0];
 	
-	$stmt = qq(select store_locator_id from store_locator
-	           where name = ?;);
-	$sqlh = $dbh->prepare($stmt);
-	$sqlh->execute($data{store_location});
-	@row = $sqlh->fetchrow_array();
+	$stmt = $dbh->prepare(qq:
+	                      select store_locator_id from store_locator
+	                      where name = ?;
+	                      :);
+	$stmt->execute($data{store_location});
+	@row = $stmt->fetchrow_array();
+	$stmt->finish();
 	$data{store_location_id} = $row[0];
 
-	$stmt = qq(insert into item (name, home_locator_id,
-	           store_locator_id, stocking_level, comment) values
-	           (?, ?, ?, ?, ?););
-	$sqlh = $dbh->prepare($stmt);
-	$sqlh->execute("$data{item}", "$data{home_location_id}", 
-	            "$data{store_location_id}", "$data{stocking_level}",
-	            "$data{comment}");
+	$stmt = $dbh->prepare(qq:
+	                      insert into item (name, home_locator_id,
+	                      store_locator_id, stocking_level, comment) values
+	                      (?, ?, ?, ?, ?);
+	                      :);
+	$stmt->execute("$data{item}", "$data{home_location_id}", 
+	               "$data{store_location_id}", "$data{stocking_level}",
+	               "$data{comment}");
+	$stmt->finish();
 }
 
 #===================================================================
@@ -143,34 +174,40 @@ sub verify_update
   my(@item_row);
   my(@locator_row);
   
-  $stmt = qq(select * from item where name = ?);
-  $sqlh = $dbh->prepare($stmt);
-  $sqlh->execute($data{item});
-  @item_row = $sqlh->fetchrow_array();
+  $stmt = $dbh->prepare(qq:
+                        select * from item where name = ?
+                        :);
+  $stmt->execute($data{item});
+  @item_row = $stmt->fetchrow_array();
+  $stmt->finish();
   
   $data{error_message} = "";
 
-  if($item_row[0] != $data{item})
+  if($item_row[0] ne $data{item})
   {
     $data{error_message} .= "item error: $item_row[0]\n";
   }
 
-  $stmt = qq(select name from home_locator
-             where home_locator_id = ?;);
-  $sqlh = $dbh->prepare($stmt);
-  $sqlh->execute($item_row[1]);
-  @locator_row = $sqlh->fetchrow_array();
-  if($locator_row[0] != $data{home_location})
+  $stmt = $dbh->prepare(qq:
+                        select name from home_locator
+                        where home_locator_id = ?;
+                        :);
+  $stmt->execute($item_row[1]);
+  @locator_row = $stmt->fetchrow_array();
+  $stmt->finish();
+  if($locator_row[0] ne $data{home_location})
   {
     $data{error_message} .= "home location error: $locator_row[0]\n";
   }
 
-  $stmt = qq(select name from store_locator
-             where store_locator_id = ?;);
-  $sqlh = $dbh->prepare($stmt);
-  $sqlh->execute($item_row[2]);
-  @locator_row = $sqlh->fetchrow_array();
-  if($locator_row[0] != $data{store_location})
+  $stmt = $dbh->prepare(qq:
+                        select name from store_locator
+                        where store_locator_id = ?;
+                        :);
+  $stmt->execute($item_row[2]);
+  @locator_row = $stmt->fetchrow_array();
+  $stmt->finish();
+  if($locator_row[0] ne $data{store_location})
   {
     $data{error_message} .= "store location error: $locator_row[0]\n";
   }
@@ -180,7 +217,7 @@ sub verify_update
     $data{error_message} .= "stocking level error: $item_row[3]\n";
   }
 
-  if($item_row[4] != $data{comment})
+  if($item_row[4] ne $data{comment})
   {
     $data{error_message} .= "comment error: $item_row[4]\n";
   }
@@ -196,10 +233,78 @@ sub verify_update
 }
 
 ####################################################################
-#                       Form Display Routines
+#                       Display Form Routines
 ####################################################################
 #===================================================================
-sub display_form
+sub display_form()
+{
+  my($type) = shift;
+  my($error_message) = shift;
+  my($item) = shift;
+  my($home_loc) = shift;
+  my($store_loc) = shift;
+  my($stocking_lvl) = shift;
+  my($comment) = shift;
+  
+  if($type eq "item")
+  {
+    display_item_form($error_message, $item);
+  }
+  else
+  {
+    display_edit_form($error_message, $item, $home_loc, $store_loc,
+                      $stocking_lvl, $comment);
+  }
+}
+
+#===================================================================
+sub display_item_form
+{
+  my($error_message) = shift;
+  my($item) = shift;
+  
+  #
+  # Output the html code to display the item form 
+  #
+  print $form->header();
+  print <<END_HTML;
+  <html>
+  
+    <head>
+      <title>
+        Item Form
+      </title>
+    </head>
+    
+    <body>
+      <form action="edit_item.pl" method="post">
+      <input type="hidden" name="state" value="item">
+
+        <h3>
+          Store List Edit Item 1
+        </h3>
+
+        <p>
+          Item:
+          <input type="text" name="item" value="$item" autofocus>
+          <br>
+
+          <input type="submit" name="submit" value="Submit">
+        </p>
+
+        <p style="color:red;">
+          $error_message
+        </p>
+
+      </form>
+    </body>
+  </html>
+END_HTML
+
+}
+
+#===================================================================
+sub display_edit_form
 {
   my($error_message) = shift;
   my($item) = shift;
@@ -217,42 +322,55 @@ sub display_form
   # Build  home_location drop down list
   #
   $home_loc_drop_down_html = "";
-  $stmt = qq(select name from home_locator;);
-  $sqlh = $dbh->prepare($stmt);
-  $sqlh->execute();
-  while(@row = $sqlh->fetchrow_array())
+  $stmt = $dbh->prepare(qq:
+                        select name from home_locator;
+                        :);
+  $stmt->execute();
+  while(@row = $stmt->fetchrow_array())
   {
     $home_loc_drop_down_html .= "<option value=\"$row[0]\"";
     $home_loc_drop_down_html .= " selected" if ( $row[0] eq $home_loc );
     $home_loc_drop_down_html .= ">$row[0]</option>";
   }
+  $stmt->finish();
 
   #
   # Build store_location drop down list
   #
   $store_loc_drop_down_html = "";
-  $stmt = qq(select name from store_locator;);
-  $sqlh = $dbh->prepare($stmt);
-  $sqlh->execute();
-  while(@row = $sqlh->fetchrow_array())
+  $stmt = $dbh->prepare(qq:
+                        select name from store_locator;
+                        :);
+  $stmt->execute();
+  while(@row = $stmt->fetchrow_array())
   {
     $store_loc_drop_down_html .= "<option value=\"$row[0]\"";
     $store_loc_drop_down_html .= " selected" if ( $row[0] eq $store_loc );
     $store_loc_drop_down_html .= ">$row[0]</option>";
   }
+  $stmt->finish();
 
   #
   # Output the html code to display the form 
   #
+  print $form->header();
+  
   print <<END_HTML;
   <html>
-    <head><title>Form Validation</title></head>
+  
+    <head>
+      <title>
+        Edit Form
+      </title>
+    </head>
+    
     <body>
-
       <form action="edit_item.pl" method="post">
-      <input type="hidden" name="process" value="item_form">
+      <input type="hidden" name="state" value="edit">
 
-        <h3>Store List Edit Item</h3>
+        <h3>
+          Store List Edit Item 2
+        </h3>
 
         <p>
           Item:
@@ -278,7 +396,9 @@ sub display_form
           <input type="submit" name="submit" value="Submit">
         </p>
 
-        <p style="color:red;">$error_message</p>
+        <p style="color:red;">
+          $error_message
+        </p>
 
       </form>
     </body>
