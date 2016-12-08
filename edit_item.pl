@@ -4,14 +4,14 @@ use CGI;
 use CGI::Carp qw(warningsToBrowser fatalsToBrowser);
 use DBI;
 
-my($form);
+my($forms);
 my($dbh);
 my(%data);
 
 #
 # Initialize CGI interface.
 #
-$form = new CGI;
+$forms = new CGI;
 
 #
 # Connect to the store list database.
@@ -24,79 +24,51 @@ $dbh->{AutoCommit} = 1;
 #
 # Process form input if submitted; otherwise display it
 #
-if($form->param("submit"))
+if($forms->param("submit"))
 {
-  if($form->param("state") eq "item")
+  if($forms->param("form") eq "item")
   {
-    process_item_input();
+    process_item_form_input();
   }
   else
   {
-    process_edit_input();
+    process_edit_form_input();
   }
 }
 else
 {
-  display_form("item");
+  display_forms("item");
 }
 
 $dbh->disconnect();
 
 
 ####################################################################
-#                     Process Edit Form Input Routines 
+#                     Process Item Form Input Routines 
 ####################################################################
 #===================================================================
-sub process_item_input
+sub process_item_form_input
 {
-  display_form("edit", "test msg");
-}
-
-sub get_item_input
-{
-}
-
-sub validate_item_input
-{
-}
-
-####################################################################
-#                     Process Edit Form Input Routines 
-####################################################################
-#===================================================================
-sub process_edit_input
-{
-  get_edit_input();
-  if(!validate_edit_input())
+  get_item_form_input();
+  if(!validate_item_form_input())
   {
-    display_form("edit", $data{error_message}, $data{item},
-                 $data{home_location}, $data{store_location}, 
-                 $data{stocking_level}, $data{comment});
+    display_forms("item", $data{error_message}, $data{item});
     return;
   }
-  update_database();
-  if(verify_update())
-  {
-    display_form("item", "Item has been added. Please add next item.");
-  }
-  else
-  {
-    display_form("edit", $data{error_message});
-  } 
+  get_item_data();
+  display_forms("edit", $data{error_message}, $data{item},
+                 $data{home_location}, $data{store_location}, 
+                 $data{stocking_level}, $data{comment});
 }
 
 #===================================================================
-sub get_edit_input
+sub get_item_form_input
 {
-  $data{item} = $form->param("item");
-  $data{home_location} = $form->param("home_location");
-  $data{store_location} = $form->param("store_location");
-  $data{stocking_level} = $form->param("stocking_level");
-  $data{comment} = $form->param("comment");
+  $data{item} = $forms->param("item");
 }
 
 #===================================================================
-sub validate_edit_input
+sub validate_item_form_input
 {
   my($stmt);
   my(@row);
@@ -114,12 +86,9 @@ sub validate_edit_input
   $stmt->execute($data{item});
   @row = $stmt->fetchrow_array();
   $stmt->finish();
-  if(@row)
+  if ($row[0] ne $data{item})
   {
-	  if ($row[0] eq $data{item})
-	  {
-      $data{error_message} .= "Duplicate Items not allowed.";
-	  }
+     $data{error_message} .= "Item not found";
   }
 
   if($data{error_message})
@@ -133,6 +102,71 @@ sub validate_edit_input
 }
 
 #===================================================================
+sub get_item_data
+{
+  my($stmt);
+  my(@item_row);
+  my(@locator_row);
+
+  $stmt = $dbh->prepare(qq:
+                        select * from item where name = ?
+                        :);
+  $stmt->execute($data{item});
+  @item_row = $stmt->fetchrow_array();
+  $stmt->finish();
+  
+  $stmt = $dbh->prepare(qq:
+                        select name from home_locator
+                        where home_locator_id = ?;
+                        :);
+  $stmt->execute($item_row[1]);
+  @locator_row = $stmt->fetchrow_array();
+  $stmt->finish();
+  $data{home_location} = $locator_row[0];
+
+  $stmt = $dbh->prepare(qq:
+                        select name from store_locator
+                        where store_locator_id = ?;
+                        :);
+  $stmt->execute($item_row[2]);
+  @locator_row = $stmt->fetchrow_array();
+  $stmt->finish();
+  $data{store_location} = $locator_row[0];
+
+  $data{stocking_level} = $item_row[3];
+  $data{comment} = $item_row[4];
+
+}
+
+####################################################################
+#                     Process Edit Form Input Routines 
+####################################################################
+#===================================================================
+sub process_edit_form_input
+{
+  get_edit_form_input();
+  update_database();
+  if(verify_update())
+  {
+    display_forms("item", "Item has been updated. Please enter next item.");
+  }
+  else
+  {
+    display_forms("edit", $data{error_message});
+  } 
+}
+
+#===================================================================
+sub get_edit_form_input
+{
+  $data{item} = $forms->param("item");
+  $data{home_location} = $forms->param("home_location");
+  $data{store_location} = $forms->param("store_location");
+  $data{stocking_level} = $forms->param("stocking_level");
+  $data{comment} = $forms->param("comment");
+}
+
+#===================================================================
 sub update_database
 {
 	my($stmt);
@@ -140,8 +174,8 @@ sub update_database
 	
 	$stmt = $dbh->prepare(qq:
 	                      select home_locator_id from home_locator
-			                  where name = ?;
-			                  :);
+		                  where name = ?;
+		                  :);
 	$stmt->execute($data{home_location});
 	@row = $stmt->fetchrow_array();
 	$stmt->finish();
@@ -157,13 +191,16 @@ sub update_database
 	$data{store_location_id} = $row[0];
 
 	$stmt = $dbh->prepare(qq:
-	                      insert into item (name, home_locator_id,
-	                      store_locator_id, stocking_level, comment) values
-	                      (?, ?, ?, ?, ?);
+	                      update item 
+	                      set home_locator_id = ?,
+	                      store_locator_id = ?,
+	                      stocking_level = ?,
+	                      comment = ?
+	                      where name = ?;
 	                      :);
-	$stmt->execute("$data{item}", "$data{home_location_id}", 
+	$stmt->execute("$data{home_location_id}", 
 	               "$data{store_location_id}", "$data{stocking_level}",
-	               "$data{comment}");
+	               "$data{comment}", "$data{item}");
 	$stmt->finish();
 }
 
@@ -233,10 +270,10 @@ sub verify_update
 }
 
 ####################################################################
-#                       Display Form Routines
+#                       Display Forms Routines
 ####################################################################
 #===================================================================
-sub display_form()
+sub display_forms()
 {
   my($type) = shift;
   my($error_message) = shift;
@@ -266,7 +303,7 @@ sub display_item_form
   #
   # Output the html code to display the item form 
   #
-  print $form->header();
+  print $forms->header();
   print <<END_HTML;
   <html>
   
@@ -278,10 +315,10 @@ sub display_item_form
     
     <body>
       <form action="edit_item.pl" method="post">
-      <input type="hidden" name="state" value="item">
+      <input type="hidden" name="form" value="item">
 
         <h3>
-          Store List Edit Item 1
+          Store List Edit Item
         </h3>
 
         <p>
@@ -353,7 +390,7 @@ sub display_edit_form
   #
   # Output the html code to display the form 
   #
-  print $form->header();
+  print $forms->header();
   
   print <<END_HTML;
   <html>
@@ -366,19 +403,19 @@ sub display_edit_form
     
     <body>
       <form action="edit_item.pl" method="post">
-      <input type="hidden" name="state" value="edit">
+      <input type="hidden" name="form" value="edit">
 
         <h3>
-          Store List Edit Item 2
+          Store List Edit Item
         </h3>
 
-        <p>
-          Item:
-          <input type="text" name="item" value="$item" autofocus>
+        <p contenteditable=false>
+          Item: $item
+          <input type="text" name="item" value="$item" readonly>
           <br>
 
           Home Location:
-          <select name="home_location">$home_loc_drop_down_html</select>
+          <select name="home_location">$home_loc_drop_down_html </select>
           <br> 
 
           Store Location:
