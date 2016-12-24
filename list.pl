@@ -103,7 +103,7 @@ sub get_item_form_input
                           store_location)
                           values ( ?, ?, ?, ?, ?, ?);
                           :);
-  
+
   $size = @{$data{qty}};
   $i = 0;
   while($i < $size) {
@@ -131,9 +131,19 @@ sub get_item_form_input
                          :);
   $stmt4->execute();
   
+#  print "Content-Type: text/html\n\n";
+  print "<pre> \n";
   while(@row = $stmt4->fetchrow_array()) {
-    print "$row[0], $row[1], $row[2], $row[3], $row[4] <br>";
+    printf "___ %9.9s %3d %-s\n", 
+          $row[0], $row[1], $row[2];
+    if($row[3] ne "") {
+      printf "                     Comment: $row[3]\n";
+    }
+    if($row[4] ne "") {
+      printf "                     Note: $row[4]\n";
+    }
   }
+  print "</pre>";
   $stmt4->finish();
 
   $mdbh->disconnect();
